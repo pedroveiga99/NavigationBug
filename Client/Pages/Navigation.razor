@@ -1,0 +1,59 @@
+﻿@page "/navigation"
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<h3>Navigation</h3>
+
+<button @onclick=ButtonClick> Send Message</button>
+
+@foreach(DateTime time in times)
+{
+    <p>@time.ToLongTimeString()</p>
+}
+
+@code {
+    CancellationTokenSource workersCancelationSource = new();
+
+    TimeSpan refreshInterval = TimeSpan.FromSeconds(1);
+    DateTime[] times = Array.Empty<DateTime>();
+
+    protected override void OnInitialized()
+    {
+        _ = DoThings();
+    }
+
+    private async Task DoThings()
+    {
+        PeriodicTimer _timer = new(refreshInterval);
+        do
+        {
+            times = times.Append(DateTime.Now).ToArray();
+            StateHasChanged();
+        } while (await _timer.WaitForNextTickAsync(workersCancelationSource.Token));
+    }
+
+    private async Task RedirectToPage()
+    {
+        NavigationManager.NavigateTo("/");
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ButtonClick()
+    {
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(3000);
+            await RedirectToPage();
+        });
+
+        await Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        workersCancelationSource.Cancel();
+
+        await Task.CompletedTask;
+    }
+}
